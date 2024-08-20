@@ -463,15 +463,18 @@ fn main() {
     };
 
     let symbols = object.symbol_map();
-    let mut dwarf = gimli::Dwarf::load(&mut load_section).unwrap();
-    if let Some(ref sup_object) = sup_object {
+    let sections = gimli::DwarfSections::load(&mut load_section).unwrap();
+    let dwarf = if let Some(ref sup_object) = sup_object {
         let mut load_sup_section = |id: gimli::SectionId| -> Result<_, _> {
             load_file_section(id, sup_object, endian, &arena_data)
         };
-        dwarf.load_sup(&mut load_sup_section).unwrap();
-    }
+        let sup_secs = gimli::DwarfSections::load(&mut load_sup_section).unwrap();
+        sections.borrow_with_sup(&sup_secs, |b| *b)
+    } else {
+        sections.borrow(|b| *b)
+    };
 
-    let ctx = Context::from_dwarf(dwarf.borrow(|b| *b)).unwrap();
+    let ctx = Context::from_dwarf(dwarf).unwrap();
 
     let stdin = std::io::stdin();
     let queries = matches
@@ -483,7 +486,7 @@ fn main() {
         match addr_or_cunit {
             QueryType::Addr(probe) => query_address(probe, &ctx, &symbols, &config),
             QueryType::CompileUnit(compile_unit) => {
-                query_compile_unit(&compile_unit, &dwarf, &config)
+                query_compile_unit(&compile_unit, &sections.borrow(|b| *b), &config)
             }
             _ => panic!("not implemented yet"),
         }
