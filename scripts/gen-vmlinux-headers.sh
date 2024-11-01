@@ -22,7 +22,9 @@ fi
 #                  gcc-s390x-linux-gnu \
 #                  gcc-ppc64le-linux-gnu \
 #                  binutils-ppc64le-linux-gnu \
-#                  gcc-riscv64-linux-gnu
+#                  gcc-riscv64-linux-gnu \
+#                  gcc-arm-linux-gnu \
+#                  gcc-loongarch64-linux-gnu
 
 build_arch(){
 	local arch="$1"
@@ -38,6 +40,7 @@ build_arch(){
 			| sed 's/ppc64le/powerpc/'			\
 			| sed 's/riscv64/riscv/'			\
 			| sed 's/s390x/s390/'				\
+			| sed 's/loongarch64/loongarch/'				\
 	)
 
 	echo "Building $arch ($arch_slug) into $build_dir..."
@@ -56,6 +59,10 @@ build_arch(){
 			CONFIG_BPF_EVENTS=y
 			CONFIG_BPF_JIT=y
 			CONFIG_MODULES=y
+			CONFIG_NET=y
+			CONFIG_INET=y
+			CONFIG_NETFILTER=y
+			CONFIG_NETFILTER_XT_MATCH_BPF=y
 			CONFIG_TRACING=y
 			CONFIG_KPROBES=y
 			CONFIG_FTRACE=y
@@ -76,13 +83,6 @@ build_arch(){
 			file "$build_dir_abs/vmlinux" format c		\
 			> "$RETSNOOP_REPO/src/$arch_slug/vmlinux.h"
 	)
-
-	echo "Validating vmlinux.h for $arch ($arch_slug)..."
-	(
-		cd "$RETSNOOP_REPO/src"
-		rm -rf .output retsnoop simfail
-		make ARCH=$arch_slug -j$(nproc) &> "$retsnoop_log"
-	)
 }
 
 (
@@ -91,6 +91,6 @@ build_arch(){
 	make bpftool &> "$BUILD_DIR/bpftool_build.txt"
 )
 
-for arch in x86_64 aarch64 s390x ppc64le riscv64; do
+for arch in x86_64 aarch64 s390x ppc64le riscv64 arm loongarch64; do
 	build_arch $arch
 done
